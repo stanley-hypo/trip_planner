@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox } from '@mantine/core';
+import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox, Card, List, ThemeIcon } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin } from '@tabler/icons-react';
+import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes } from '@tabler/icons-react';
 import { LoginForm } from '@/components/LoginForm';
 import { ResetConfirmModal } from '@/components/ResetConfirmModal';
 import { SpecialEventModal } from '@/components/SpecialEventModal';
@@ -347,60 +347,155 @@ export default function Page() {
                   {["lunch","dinner"].map((mealKey) => {
 
                     const meal = (d as any)[mealKey];
-
                     const hasBooking = meal?.booking && Object.keys(meal.booking).length > 0;
+                    const isLunch = mealKey === 'lunch';
+                    const mealColor = isLunch ? 'orange' : 'violet';
 
                     return (
 
                       <Table.Td key={mealKey}>
 
-                        <Stack gap={6}>
-
-                          <Group gap="xs" wrap="wrap">
-
-                            {meal.participants.map((p: string) => (<Badge key={p} variant="light">{p}</Badge>))}
-
-                            {meal.participants.length === 0 && <Text c="dimmed" size="sm">無成員</Text>}
-
+                        <Card padding="sm" radius="md" withBorder style={{ backgroundColor: isLunch ? '#fef7ed' : '#f5f3ff' }}>
+                          
+                          {/* 餐別標題 */}
+                          <Group justify="space-between" mb="sm">
+                            <Text size="lg" fw={600} c={isLunch ? 'orange' : 'violet'}>
+                              {isLunch ? '🍽️ 午餐' : '🍷 晚餐'}
+                            </Text>
+                            {hasBooking && (
+                              <Text size="xs" c="green" fw={500}>● 已訂位</Text>
+                            )}
                           </Group>
 
-                          {meal.note && <Text size="sm">{meal.note}</Text>}
+                          {/* 參與成員 */}
+                          <Group mb="xs">
+                            <ThemeIcon size="sm" color={mealColor} variant="light">
+                              <IconUsers size={12} />
+                            </ThemeIcon>
+                            <Text size="md" fw={500}>
+                              {meal.participants.length > 0 
+                                ? meal.participants.join('、') 
+                                : '無參與者'
+                              }
+                            </Text>
+                          </Group>
 
-                          {hasBooking && (
-
-                            <Group gap="xs" wrap="wrap">
-
-                              {meal.booking.place && <Badge>{meal.booking.place}</Badge>}
-
-                              {meal.booking.time && <Badge variant="light">{meal.booking.time.split(' ')[1] || meal.booking.time}</Badge>}
-
-                              {meal.booking.people && <Badge variant="outline">{meal.booking.people}人</Badge>}
-
-                              {meal.booking.url && <Anchor href={meal.booking.url} target="_blank" size="sm">連結</Anchor>}
-
-                              {meal.booking.googleMaps && (
-                                <Button
-                                  size="xs"
-                                  variant="light"
-                                  color="blue"
-                                  leftSection={<IconMapPin size={12} />}
-                                  onClick={() => window.open(meal.booking.googleMaps, '_blank')}
-                                >
-                                  地圖
-                                </Button>
-                              )}
-
+                          {/* 備註內容 */}
+                          {meal.note && (
+                            <Group align="flex-start" mb="sm">
+                              <ThemeIcon size="sm" color="gray" variant="light">
+                                <IconNotes size={12} />
+                              </ThemeIcon>
+                              <Text size="md" style={{ flex: 1 }}>
+                                {meal.note}
+                              </Text>
                             </Group>
-
                           )}
 
-                          <Group>
+                          {/* 訂位信息 */}
+                          {hasBooking && (
+                            <Stack gap="xs" mt="sm" pt="sm" style={{ borderTop: '1px solid #e9ecef' }}>
+                              
+                              {meal.booking.place && (
+                                <Group>
+                                  <ThemeIcon size="sm" color="blue" variant="light">
+                                    <IconMapPin size={12} />
+                                  </ThemeIcon>
+                                  <Text size="md" fw={500}>{meal.booking.place}</Text>
+                                </Group>
+                              )}
+                              
+                              {meal.booking.time && (
+                                <Group>
+                                  <ThemeIcon size="sm" color="indigo" variant="light">
+                                    <IconClock size={12} />
+                                  </ThemeIcon>
+                                  <Text size="md">{meal.booking.time.split(' ')[1] || meal.booking.time}</Text>
+                                </Group>
+                              )}
+                              
+                              {meal.booking.people && (
+                                <Group>
+                                  <ThemeIcon size="sm" color="teal" variant="light">
+                                    <IconUsers size={12} />
+                                  </ThemeIcon>
+                                  <Text size="md">{meal.booking.people} 人</Text>
+                                </Group>
+                              )}
 
-                            <Button size="xs" variant="light" leftSection={<IconPencil size={14} />} onClick={() => setEdit({ open: true, date: d.date, meal: mealKey as any })}>編輯</Button>
+                              {meal.booking.price && (
+                                <Group>
+                                  <ThemeIcon size="sm" color="green" variant="light">
+                                    <IconCurrencyDollar size={12} />
+                                  </ThemeIcon>
+                                  <Text size="md">${meal.booking.price}</Text>
+                                </Group>
+                              )}
+                              
+                              {meal.booking.ref && (
+                                <Group>
+                                  <ThemeIcon size="sm" color="purple" variant="light">
+                                    <IconPhone size={12} />
+                                  </ThemeIcon>
+                                  <Text size="md">{meal.booking.ref}</Text>
+                                </Group>
+                              )}
 
+                              {/* 連結按鈕 */}
+                              <Group gap="xs" mt="xs">
+                                {meal.booking.url && (
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    color="cyan"
+                                    leftSection={<IconWorld size={14} />}
+                                    onClick={() => window.open(meal.booking.url, '_blank')}
+                                  >
+                                    網站
+                                  </Button>
+                                )}
+                                
+                                {meal.booking.googleMaps && (
+                                  <Button
+                                    size="sm"
+                                    variant="light"
+                                    color="blue"
+                                    leftSection={<IconMapPin size={14} />}
+                                    onClick={() => window.open(meal.booking.googleMaps, '_blank')}
+                                  >
+                                    地圖
+                                  </Button>
+                                )}
+                              </Group>
+
+                              {meal.booking.notes && (
+                                <Text size="sm" c="dimmed" style={{ 
+                                  fontStyle: 'italic',
+                                  marginTop: '8px',
+                                  padding: '8px',
+                                  backgroundColor: '#f8f9fa',
+                                  borderRadius: '4px'
+                                }}>
+                                  {meal.booking.notes}
+                                </Text>
+                              )}
+                            </Stack>
+                          )}
+
+                          {/* 編輯按鈕 */}
+                          <Group justify="flex-end" mt="sm">
+                            <Button 
+                              size="sm" 
+                              variant="light" 
+                              color={mealColor}
+                              leftSection={<IconPencil size={14} />} 
+                              onClick={() => setEdit({ open: true, date: d.date, meal: mealKey as any })}
+                            >
+                              編輯
+                            </Button>
                           </Group>
 
-                        </Stack>
+                        </Card>
 
                       </Table.Td>
 
