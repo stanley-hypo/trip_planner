@@ -118,13 +118,13 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
   const [note, setNote] = useState(m.note);
   const [selected, setSelected] = useState<string[]>(m.participants);
   const [booking, setBooking] = useState<Booking>(m.booking || {} as Booking);
-  const [hasBooking, setHasBooking] = useState(Boolean(m.booking && Object.keys(m.booking).length > 0));
+  const [isBooked, setIsBooked] = useState(Boolean(m.booking?.isBooked));
 
   useEffect(() => {
     setNote(m.note);
     setSelected(m.participants);
     setBooking(m.booking || {});
-    setHasBooking(Boolean(m.booking && Object.keys(m.booking).length > 0));
+    setIsBooked(Boolean(m.booking?.isBooked));
   }, [day.date, meal, opened]);
 
   const save = () => {
@@ -133,7 +133,7 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
       [meal]: {
         note,
         participants: selected,
-        booking: hasBooking && Object.keys(booking || {}).length ? booking : null
+        booking: Object.keys(booking || {}).length ? { ...booking, isBooked } : null
       }
     };
     onSave(updated);
@@ -191,21 +191,8 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
           💡 提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
         </Text>
         
-        <Group justify="space-between" align="center">
-          <Text size="md" fw={500}>訂位狀態</Text>
-          <Switch
-            label="已訂位"
-            checked={hasBooking}
-            onChange={(event) => setHasBooking(event.currentTarget.checked)}
-            size="md"
-          />
-        </Group>
+        <Divider my="xs" label="餐廳資訊" />
         
-        {hasBooking && (
-          <>
-            <Divider my="xs" label="訂位資訊" />
-          </>
-        )}
         <TextInput label="餐廳/地點" value={booking?.place || ''} onChange={(e) => setBooking({ ...booking, place: e.currentTarget.value })} />
         <TimeInput 
           label="用餐時間" 
@@ -230,6 +217,17 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
           }}
         />
         <NumberInput label="人數" value={booking?.people ?? undefined} onChange={(v) => setBooking({ ...booking, people: Number(v) || undefined })} min={1} />
+        
+        <Group justify="space-between" align="center" mt="md">
+          <Text size="md" fw={500}>訂位狀態</Text>
+          <Switch
+            label="已訂位"
+            checked={isBooked}
+            onChange={(event) => setIsBooked(event.currentTarget.checked)}
+            size="md"
+          />
+        </Group>
+        
         <Group grow>
           <TextInput label="預約編號" value={booking?.ref || ''} onChange={(e) => setBooking({ ...booking, ref: e.currentTarget.value })} />
           <TextInput label="聯絡方式" value={booking?.contact || ''} onChange={(e) => setBooking({ ...booking, contact: e.currentTarget.value })} />
@@ -259,10 +257,14 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
           )}
         </Group>
         <Textarea label="備註" value={booking?.notes || ''} onChange={(e) => setBooking({ ...booking, notes: e.currentTarget.value })} autosize minRows={2} />
+        
         <Group justify="space-between" mt="sm">
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => { setBooking({}); }}>
-            清除訂位資料
+          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => { setBooking({}); setIsBooked(false); }}>
+            清除餐廳資料
           </Button>
+        </Group>
+        
+        <Group justify="flex-end" mt="lg">
           <Button leftSection={<IconDeviceFloppy size={16} />} onClick={save}>儲存</Button>
         </Group>
       </Stack>
@@ -388,7 +390,8 @@ export default function Page() {
                   {["lunch","dinner"].map((mealKey) => {
 
                     const meal = (d as any)[mealKey];
-                    const hasBooking = meal?.booking && Object.keys(meal.booking).length > 0;
+                    const hasRestaurantData = meal?.booking && Object.keys(meal.booking).length > 0;
+                    const isBooked = meal?.booking?.isBooked;
                     const isLunch = mealKey === 'lunch';
                     const mealColor = isLunch ? 'orange' : 'violet';
 
@@ -403,8 +406,10 @@ export default function Page() {
                             <Text size="lg" fw={600} c={isLunch ? 'orange' : 'violet'}>
                               {isLunch ? '🍽️ 午餐' : '🍷 晚餐'}
                             </Text>
-                            {hasBooking && (
-                              <Text size="xs" c="green" fw={500}>● 已訂位</Text>
+                            {hasRestaurantData && (
+                              <Text size="xs" c={isBooked ? "green" : "orange"} fw={500}>
+                                ● {isBooked ? '已訂位' : '未訂位'}
+                              </Text>
                             )}
                           </Group>
 
@@ -433,8 +438,8 @@ export default function Page() {
                             </Group>
                           )}
 
-                          {/* 訂位信息 */}
-                          {hasBooking && (
+                          {/* 餐廳信息 */}
+                          {hasRestaurantData && (
                             <Stack gap="xs" mt="sm" pt="sm" style={{ borderTop: '1px solid #e9ecef' }}>
                               
                               {meal.booking.place && (

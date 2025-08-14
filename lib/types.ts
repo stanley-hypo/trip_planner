@@ -8,6 +8,7 @@ export type Booking = {
   url?: string;
   googleMaps?: string;
   notes?: string;
+  isBooked?: boolean; // 標記是否已完成訂位
 };
 
 export type Meal = {
