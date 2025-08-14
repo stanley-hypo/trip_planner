@@ -67,4 +67,4 @@ Thumbs.db
 
 # Cache
 .cache/
-data/trip.json
+data/*.json
