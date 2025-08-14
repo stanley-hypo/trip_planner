@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
-import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink } from '@tabler/icons-react';
+import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout } from '@tabler/icons-react';
+import { LoginForm } from '@/components/LoginForm';
 import dayjs from 'dayjs';
 import { Trip, Day, Booking } from '@/lib/types';
 
@@ -16,6 +17,16 @@ const fetcher = (url: string) => fetch(url).then(async (r) => {
 function useTrip() {
   const { data, error, isLoading, mutate } = useSWR<{ ok: boolean; trip: Trip }>(`/api/trip`, fetcher);
   return { trip: data?.trip, error, isLoading, mutate };
+}
+
+function useAuth() {
+  const { data, error, isLoading, mutate } = useSWR<{ ok: boolean; authenticated: boolean }>(`/api/auth`, fetcher);
+  return { 
+    isAuthenticated: data?.authenticated || false, 
+    authError: error, 
+    authLoading: isLoading, 
+    checkAuth: mutate 
+  };
 }
 
 function InitForm({ onDone }: { onDone: () => void }) {
@@ -141,6 +152,7 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
 }
 
 export default function Page() {
+  const { isAuthenticated, authLoading, checkAuth } = useAuth();
   const { trip, isLoading, mutate, error } = useTrip();
   const [initOpen, setInitOpen] = useState(false);
   const [edit, setEdit] = useState<EditState>({ open: false });
@@ -148,6 +160,25 @@ export default function Page() {
   useEffect(() => {
     if (error) setInitOpen(true);
   }, [error]);
+
+  const handleLogin = async () => {
+    await checkAuth(); // Refresh auth status after login
+  };
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    await checkAuth(); // Refresh auth status after logout
+  };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return <Container pos="relative" mih={200}><LoadingOverlay visible /></Container>;
+  }
+
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} />;
+  }
 
   const saveTrip = async (t: Trip) => {
     await fetch('/api/trip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trip: t }) });
@@ -182,6 +213,7 @@ export default function Page() {
           </Group>
           <Group gap="xs">
             <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => setInitOpen(true)}>重設 / 新行程</Button>
+            <Button variant="light" color="red" leftSection={<IconLogout size={16} />} onClick={handleLogout}>登出</Button>
           </Group>
         </Group>
       </AppShell.Header>

@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# Prevent all search engines from crawling this site
+# This is a private trip planning application

@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "startDate": "2026-02-04",
+    "endDate": "2026-02-09",
+    "createdAt": "2025-08-14T18:46:26.360Z",
+    "participants": [
+      "Alex",
+      "Ben",
+      "Cathy"
+    ]
+  },
+  "days": [
+    {
+      "date": "2026-02-04",
+      "weekday": "星期三",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    },
+    {
+      "date": "2026-02-05",
+      "weekday": "星期四",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    },
+    {
+      "date": "2026-02-06",
+      "weekday": "星期五",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    },
+    {
+      "date": "2026-02-07",
+      "weekday": "星期六",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    },
+    {
+      "date": "2026-02-08",
+      "weekday": "星期日",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    },
+    {
+      "date": "2026-02-09",
+      "weekday": "星期一",
+      "lunch": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "dinner": {
+        "note": "",
+        "participants": [],
+        "booking": null
+      },
+      "special": ""
+    }
+  ]
+}
