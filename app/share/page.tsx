@@ -455,13 +455,7 @@ export default function SharePage() {
                         </Group>
                       </Group>
                       
-                      <Button
-                        size="xs"
-                        variant="light"
-                        leftSection={<IconShare size={14} />}
-                      >
-                        分享
-                      </Button>
+
                     </Group>
                     
                     {/* 評論區 */}
