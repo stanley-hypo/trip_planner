@@ -6,6 +6,7 @@ export type Booking = {
   contact?: string;
   price?: number;
   url?: string;
+  googleMaps?: string;
   notes?: string;
 };
 

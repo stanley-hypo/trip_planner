@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput } from '@mantine/core';
-import { DatePickerInput, DateTimePicker } from '@mantine/dates';
-import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout } from '@tabler/icons-react';
+import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox } from '@mantine/core';
+import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin } from '@tabler/icons-react';
 import { LoginForm } from '@/components/LoginForm';
+import { ResetConfirmModal } from '@/components/ResetConfirmModal';
+import { SpecialEventModal } from '@/components/SpecialEventModal';
 import dayjs from 'dayjs';
 import { Trip, Day, Booking } from '@/lib/types';
 
@@ -29,7 +31,7 @@ function useAuth() {
   };
 }
 
-function InitForm({ onDone }: { onDone: () => void }) {
+function InitForm({ onDone, isReset = false }: { onDone: () => void; isReset?: boolean }) {
   const [range, setRange] = useState<[Date | null, Date | null]>([new Date('2026-02-04'), new Date('2026-02-09')]);
   const [participants, setParticipants] = useState<string[]>(['Alex', 'Ben', 'Cathy']);
   const [creating, setCreating] = useState(false);
@@ -37,17 +39,29 @@ function InitForm({ onDone }: { onDone: () => void }) {
   const submit = async () => {
     if (!range[0] || !range[1]) return;
     setCreating(true);
-    await fetch('/api/init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        start: dayjs(range[0]).format('YYYY-MM-DD'),
-        end: dayjs(range[1]).format('YYYY-MM-DD'),
-        participants
-      })
-    });
-    setCreating(false);
-    onDone();
+    try {
+      const response = await fetch('/api/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start: dayjs(range[0]).format('YYYY-MM-DD'),
+          end: dayjs(range[1]).format('YYYY-MM-DD'),
+          participants,
+          force: isReset // 當是重設模式時，強制創建新行程
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create trip');
+      }
+      
+      setCreating(false);
+      onDone();
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      setCreating(false);
+      // 可以添加錯誤處理
+    }
   };
 
   return (
@@ -59,6 +73,14 @@ function InitForm({ onDone }: { onDone: () => void }) {
         leftSection={<IconCalendar size={16} />}
         value={range}
         onChange={setRange}
+        styles={{
+          input: {
+            borderColor: '#e9ecef',
+            '&:focus': {
+              borderColor: '#339af0',
+            }
+          }
+        }}
       />
       <TagsInput
         label="成員（可新增）"
@@ -79,6 +101,11 @@ type EditState = {
   meal?: 'lunch' | 'dinner';
 };
 
+type SpecialEditState = {
+  open: boolean;
+  date?: string;
+};
+
 function MealModal({ trip, day, meal, opened, onClose, onSave } : {
   trip: Trip;
   day: Day;
@@ -90,7 +117,7 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
   const m = day[meal];
   const [note, setNote] = useState(m.note);
   const [selected, setSelected] = useState<string[]>(m.participants);
-  const [booking, setBooking] = useState<Booking>(m.booking || {});
+  const [booking, setBooking] = useState<Booking>(m.booking || {} as Booking);
 
   useEffect(() => {
     setNote(m.note);
@@ -117,19 +144,50 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
     <Modal opened={opened} onClose={onClose} title={`${day.date} ${day.weekday} · ${meal === 'lunch' ? '午餐' : '晚餐'}`} size="lg">
       <Stack>
         <Textarea label="備註 / 計劃" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={2} />
-        <MultiSelect
+        <Checkbox.Group
           label="出席成員"
-          data={partOptions}
           value={selected}
           onChange={setSelected}
-          searchable
-        />
+        >
+          <Stack gap="xs" mt="xs">
+            {trip.meta.participants.map((participant) => (
+              <Checkbox 
+                key={participant} 
+                value={participant} 
+                label={participant}
+                size="sm"
+              />
+            ))}
+          </Stack>
+        </Checkbox.Group>
+        
         <Text size="sm" c="dimmed">
-          提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
+          💡 提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
         </Text>
         <Divider my="xs" label="訂位資訊（可選）" />
         <TextInput label="餐廳/地點" value={booking?.place || ''} onChange={(e) => setBooking({ ...booking, place: e.currentTarget.value })} />
-        <DateTimePicker label="日期時間" value={booking?.time ? new Date(booking.time) : null} onChange={(v) => setBooking({ ...booking, time: v ? dayjs(v).format('YYYY-MM-DD HH:mm') : undefined })} />
+        <TimeInput 
+          label="用餐時間" 
+          value={booking?.time ? booking.time.split(' ')[1] : ''} 
+          onChange={(e) => {
+            const timeValue = e.currentTarget.value;
+            const dateValue = day.date;
+            setBooking({ 
+              ...booking, 
+              time: timeValue ? `${dateValue} ${timeValue}` : undefined 
+            });
+          }} 
+          leftSection={<IconClock size={16} />}
+          placeholder="選擇時間 (如: 19:30)"
+          styles={{
+            input: {
+              borderColor: '#e9ecef',
+              '&:focus': {
+                borderColor: '#339af0',
+              }
+            }
+          }}
+        />
         <NumberInput label="人數" value={booking?.people ?? undefined} onChange={(v) => setBooking({ ...booking, people: Number(v) || undefined })} min={1} />
         <Group grow>
           <TextInput label="預約編號" value={booking?.ref || ''} onChange={(e) => setBooking({ ...booking, ref: e.currentTarget.value })} />
@@ -138,6 +196,26 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
         <Group grow>
           <NumberInput label="預算 / 價格" value={booking?.price ?? undefined} onChange={(v) => setBooking({ ...booking, price: Number(v) || undefined })} min={0} />
           <TextInput label="連結" value={booking?.url || ''} onChange={(e) => setBooking({ ...booking, url: e.currentTarget.value })} />
+        </Group>
+        
+        <Group grow>
+          <TextInput 
+            label="Google Maps 連結" 
+            value={booking?.googleMaps || ''} 
+            onChange={(e) => setBooking({ ...booking, googleMaps: e.currentTarget.value })} 
+            leftSection={<IconMapPin size={16} />}
+            placeholder="貼上 Google Maps 連結"
+          />
+          {booking?.googleMaps && (
+            <Button 
+              variant="light" 
+              leftSection={<IconExternalLink size={16} />} 
+              onClick={() => window.open(booking.googleMaps, '_blank')}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              打開地圖
+            </Button>
+          )}
         </Group>
         <Textarea label="備註" value={booking?.notes || ''} onChange={(e) => setBooking({ ...booking, notes: e.currentTarget.value })} autosize minRows={2} />
         <Group justify="space-between" mt="sm">
@@ -155,10 +233,16 @@ export default function Page() {
   const { isAuthenticated, authLoading, checkAuth } = useAuth();
   const { trip, isLoading, mutate, error } = useTrip();
   const [initOpen, setInitOpen] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [edit, setEdit] = useState<EditState>({ open: false });
+  const [specialEdit, setSpecialEdit] = useState<SpecialEditState>({ open: false });
 
   useEffect(() => {
-    if (error) setInitOpen(true);
+    if (error) {
+      setIsResetMode(false); // 首次錯誤時不是重設模式
+      setInitOpen(true);
+    }
   }, [error]);
 
   const handleLogin = async () => {
@@ -168,6 +252,12 @@ export default function Page() {
   const handleLogout = async () => {
     await fetch('/api/auth', { method: 'DELETE' });
     await checkAuth(); // Refresh auth status after logout
+  };
+
+  const handleResetConfirm = () => {
+    setResetConfirmOpen(false);
+    setIsResetMode(true);
+    setInitOpen(true);
   };
 
   // Show loading while checking authentication
@@ -191,6 +281,12 @@ export default function Page() {
     await saveTrip({ ...trip, days });
   };
 
+  const onSpecialSave = async (updatedDay: Day) => {
+    if (!trip) return;
+    const days = trip.days.map((d) => (d.date === updatedDay.date ? updatedDay : d));
+    await saveTrip({ ...trip, days });
+  };
+
   if (isLoading) {
     return <Container pos="relative" mih={200}><LoadingOverlay visible /></Container>;
   }
@@ -198,7 +294,7 @@ export default function Page() {
   if (!trip) {
     return (
       <Container size="md" py="xl">
-        <InitForm onDone={() => { setInitOpen(false); location.reload(); }} />
+        <InitForm onDone={() => { setInitOpen(false); location.reload(); }} isReset={false} />
       </Container>
     );
   }
@@ -212,7 +308,7 @@ export default function Page() {
             <Badge variant="light">{trip.meta.startDate} → {trip.meta.endDate}</Badge>
           </Group>
           <Group gap="xs">
-            <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => setInitOpen(true)}>重設 / 新行程</Button>
+            <Button variant="light" leftSection={<IconPlus size={16} />} onClick={() => setResetConfirmOpen(true)}>重設 / 新行程</Button>
             <Button variant="light" color="red" leftSection={<IconLogout size={16} />} onClick={handleLogout}>登出</Button>
           </Group>
         </Group>
@@ -276,11 +372,23 @@ export default function Page() {
 
                               {meal.booking.place && <Badge>{meal.booking.place}</Badge>}
 
-                              {meal.booking.time && <Badge variant="light">{meal.booking.time}</Badge>}
+                              {meal.booking.time && <Badge variant="light">{meal.booking.time.split(' ')[1] || meal.booking.time}</Badge>}
 
                               {meal.booking.people && <Badge variant="outline">{meal.booking.people}人</Badge>}
 
                               {meal.booking.url && <Anchor href={meal.booking.url} target="_blank" size="sm">連結</Anchor>}
+
+                              {meal.booking.googleMaps && (
+                                <Button
+                                  size="xs"
+                                  variant="light"
+                                  color="blue"
+                                  leftSection={<IconMapPin size={12} />}
+                                  onClick={() => window.open(meal.booking.googleMaps, '_blank')}
+                                >
+                                  地圖
+                                </Button>
+                              )}
 
                             </Group>
 
@@ -302,25 +410,21 @@ export default function Page() {
 
                   <Table.Td>
 
-                    <Textarea
-
-                      placeholder="例如：由雪場回東京 / Omakase (要預約)"
-
-                      autosize
-
-                      minRows={1}
-
-                      value={d.special}
-
-                      onChange={async (e) => {
-
-                        const updated = trip.days.map((x) => x.date === d.date ? { ...x, special: e.currentTarget.value } : x);
-
-                        await saveTrip({ ...trip, days: updated });
-
-                      }}
-
-                    />
+                    <Stack gap={6}>
+                      {d.special && <Text size="sm">{d.special}</Text>}
+                      {!d.special && <Text c="dimmed" size="sm">無特別行程</Text>}
+                      
+                      <Group>
+                        <Button 
+                          size="xs" 
+                          variant="light" 
+                          leftSection={<IconPencil size={14} />} 
+                          onClick={() => setSpecialEdit({ open: true, date: d.date })}
+                        >
+                          編輯
+                        </Button>
+                      </Group>
+                    </Stack>
 
                   </Table.Td>
 
@@ -338,9 +442,9 @@ export default function Page() {
 
 
 
-      <Modal opened={initOpen} onClose={() => setInitOpen(false)} title="開始新行程">
+      <Modal opened={initOpen} onClose={() => { setInitOpen(false); setIsResetMode(false); }} title={isResetMode ? "重設行程" : "開始新行程"}>
 
-        <InitForm onDone={() => { setInitOpen(false); location.reload(); }} />
+        <InitForm onDone={() => { setInitOpen(false); setIsResetMode(false); location.reload(); }} isReset={isResetMode} />
 
       </Modal>
 
@@ -365,6 +469,28 @@ export default function Page() {
         />
 
       )}
+
+      {specialEdit.open && (
+
+        <SpecialEventModal
+
+          day={trip.days.find((x) => x.date === specialEdit.date)!}
+
+          opened={specialEdit.open}
+
+          onClose={() => setSpecialEdit({ open: false })}
+
+          onSave={onSpecialSave}
+
+        />
+
+      )}
+
+      <ResetConfirmModal
+        opened={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        onConfirm={handleResetConfirm}
+      />
 
     </AppShell>
 

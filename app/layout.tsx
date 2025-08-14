@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { MantineProvider, ColorSchemeScript, createTheme } from '@mantine/core';
 import '@mantine/core/styles.css';
+import '@mantine/dates/styles.css';
 
 export const metadata: Metadata = {
   title: 'Trip Meal Planner',
