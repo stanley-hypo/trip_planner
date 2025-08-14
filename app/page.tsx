@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox, Card, List, ThemeIcon, Switch } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes } from '@tabler/icons-react';
+import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes, IconX, IconCalendarPlus } from '@tabler/icons-react';
 import { LoginForm } from '@/components/LoginForm';
 import { ResetConfirmModal } from '@/components/ResetConfirmModal';
-import { SpecialEventModal } from '@/components/SpecialEventModal';
+import { SpecialEventsModal } from '@/components/SpecialEventsModal';
 import dayjs from 'dayjs';
-import { Trip, Day, Booking } from '@/lib/types';
+import { Trip, Day, Booking, SpecialEvent } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then(async (r) => {
   if (!r.ok) throw new Error((await r.json()).error || 'Request failed');
@@ -330,6 +330,72 @@ export default function Page() {
     await saveTrip({ ...trip, days });
   };
 
+  const addDay = async (position: 'before' | 'after') => {
+    if (!trip) return;
+    
+    const currentDays = trip.days.sort((a, b) => a.date.localeCompare(b.date));
+    let newDate: string;
+    
+    if (position === 'before') {
+      const firstDate = dayjs(currentDays[0].date);
+      newDate = firstDate.subtract(1, 'day').format('YYYY-MM-DD');
+    } else {
+      const lastDate = dayjs(currentDays[currentDays.length - 1].date);
+      newDate = lastDate.add(1, 'day').format('YYYY-MM-DD');
+    }
+    
+    const newDay: Day = {
+      date: newDate,
+      weekday: zhWeekday(new Date(newDate + 'T00:00:00')),
+      lunch: { note: '', participants: [], booking: null },
+      dinner: { note: '', participants: [], booking: null },
+      special: '',
+      specialEvents: []
+    };
+    
+    const updatedDays = position === 'before' 
+      ? [newDay, ...currentDays]
+      : [...currentDays, newDay];
+    
+    const sortedDays = updatedDays.sort((a, b) => a.date.localeCompare(b.date));
+    
+    const updatedTrip: Trip = {
+      ...trip,
+      meta: {
+        ...trip.meta,
+        startDate: sortedDays[0].date,
+        endDate: sortedDays[sortedDays.length - 1].date
+      },
+      days: sortedDays
+    };
+    
+    await saveTrip(updatedTrip);
+  };
+
+  const removeDay = async (dateToRemove: string) => {
+    if (!trip || trip.days.length <= 1) return; // 至少保留一天
+    
+    const updatedDays = trip.days.filter(d => d.date !== dateToRemove);
+    const sortedDays = updatedDays.sort((a, b) => a.date.localeCompare(b.date));
+    
+    const updatedTrip: Trip = {
+      ...trip,
+      meta: {
+        ...trip.meta,
+        startDate: sortedDays[0].date,
+        endDate: sortedDays[sortedDays.length - 1].date
+      },
+      days: sortedDays
+    };
+    
+    await saveTrip(updatedTrip);
+  };
+
+  const zhWeekday = (d: Date) => {
+    const map = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    return map[d.getDay()];
+  };
+
   if (isLoading) {
     return <Container pos="relative" mih={200}><LoadingOverlay visible /></Container>;
   }
@@ -359,7 +425,32 @@ export default function Page() {
       <AppShell.Main>
         <Container size="xl">
 
-          <Table striped highlightOnHover withTableBorder withColumnBorders mt="md">
+          {/* 日子管理按鈕 */}
+          <Group justify="space-between" mb="md">
+            <Text size="lg" fw={500}>行程安排</Text>
+            <Group gap="xs">
+              <Button 
+                size="sm" 
+                variant="light" 
+                color="blue"
+                leftSection={<IconCalendarPlus size={16} />}
+                onClick={() => addDay('before')}
+              >
+                前面加一天
+              </Button>
+              <Button 
+                size="sm" 
+                variant="light" 
+                color="blue"
+                leftSection={<IconCalendarPlus size={16} />}
+                onClick={() => addDay('after')}
+              >
+                後面加一天
+              </Button>
+            </Group>
+          </Group>
+
+          <Table striped highlightOnHover withTableBorder withColumnBorders>
             <Table.Thead>
               <Table.Tr>
 
@@ -372,6 +463,8 @@ export default function Page() {
                 <Table.Th>晚餐</Table.Th>
 
                 <Table.Th style={{ width: 240 }}>特別行程</Table.Th>
+
+                <Table.Th style={{ width: 80 }}>操作</Table.Th>
 
               </Table.Tr>
 
@@ -552,8 +645,47 @@ export default function Page() {
                   <Table.Td>
 
                     <Stack gap={6}>
-                      {d.special && <Text size="sm">{d.special}</Text>}
-                      {!d.special && <Text c="dimmed" size="sm">無特別行程</Text>}
+                      {/* 顯示新的多項目特別行程 */}
+                      {d.specialEvents && d.specialEvents.length > 0 ? (
+                        <Stack gap={4}>
+                          {d.specialEvents.slice(0, 3).map((event) => (
+                            <Group key={event.id} gap="xs" wrap="nowrap">
+                              <Text size="xs" fw={500}>
+                                {event.category === '交通' ? '🚌' : 
+                                 event.category === '購物' ? '🛍️' : 
+                                 event.category === '預訂' ? '📝' : 
+                                 event.category === '其他' ? '📌' : '🎯'} 
+                                {event.title}
+                              </Text>
+                              {event.time && (
+                                <Text size="xs" c="dimmed">
+                                  {event.time}
+                                </Text>
+                              )}
+                              {event.link && (
+                                <ActionIcon
+                                  size="xs"
+                                  variant="light"
+                                  color="blue"
+                                  onClick={() => window.open(event.link, '_blank')}
+                                >
+                                  <IconExternalLink size={10} />
+                                </ActionIcon>
+                              )}
+                            </Group>
+                          ))}
+                          {d.specialEvents.length > 3 && (
+                            <Text size="xs" c="dimmed">
+                              +{d.specialEvents.length - 3} 項活動...
+                            </Text>
+                          )}
+                        </Stack>
+                      ) : d.special ? (
+                        // 顯示舊版單一特別行程
+                        <Text size="sm">{d.special}</Text>
+                      ) : (
+                        <Text c="dimmed" size="sm">無特別行程</Text>
+                      )}
                       
                       <Group>
                         <Button 
@@ -567,6 +699,27 @@ export default function Page() {
                       </Group>
                     </Stack>
 
+                  </Table.Td>
+
+                  <Table.Td>
+                    <Stack gap={6} align="center">
+                      {trip.days.length > 1 && (
+                        <Tooltip label="移除這一天">
+                          <ActionIcon
+                            size="sm"
+                            variant="light"
+                            color="red"
+                            onClick={() => {
+                              if (window.confirm(`確定要移除 ${d.date} ${d.weekday} 嗎？`)) {
+                                removeDay(d.date);
+                              }
+                            }}
+                          >
+                            <IconX size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </Stack>
                   </Table.Td>
 
                 </Table.Tr>
@@ -613,7 +766,7 @@ export default function Page() {
 
       {specialEdit.open && (
 
-        <SpecialEventModal
+        <SpecialEventsModal
 
           day={trip.days.find((x) => x.date === specialEdit.date)!}
 

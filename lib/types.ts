@@ -17,12 +17,22 @@ export type Meal = {
   booking?: Booking | null;
 };
 
+export type SpecialEvent = {
+  id: string;
+  title: string;
+  description?: string;
+  time?: string; // HH:mm format
+  link?: string;
+  category?: string; // 例如：交通、活動、購物、預訂
+};
+
 export type Day = {
   date: string;     // YYYY-MM-DD
   weekday: string;  // 星期三
   lunch: Meal;
   dinner: Meal;
-  special: string;
+  special: string; // 保持向後兼容
+  specialEvents?: SpecialEvent[]; // 新的多項目結構
 };
 
 export type Trip = {

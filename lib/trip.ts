@@ -24,7 +24,8 @@ export function emptyTrip(start: string, end: string, participants: string[] = [
     weekday: zhWeekday(new Date(ds + 'T00:00:00')),
     lunch: { note: '', participants: [], booking: null },
     dinner: { note: '', participants: [], booking: null },
-    special: ''
+    special: '',
+    specialEvents: []
   }));
 
   return {
