@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox, Card, List, ThemeIcon } from '@mantine/core';
+import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox, Card, List, ThemeIcon, Switch } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes } from '@tabler/icons-react';
 import { LoginForm } from '@/components/LoginForm';
@@ -118,11 +118,13 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
   const [note, setNote] = useState(m.note);
   const [selected, setSelected] = useState<string[]>(m.participants);
   const [booking, setBooking] = useState<Booking>(m.booking || {} as Booking);
+  const [hasBooking, setHasBooking] = useState(Boolean(m.booking && Object.keys(m.booking).length > 0));
 
   useEffect(() => {
     setNote(m.note);
     setSelected(m.participants);
     setBooking(m.booking || {});
+    setHasBooking(Boolean(m.booking && Object.keys(m.booking).length > 0));
   }, [day.date, meal, opened]);
 
   const save = () => {
@@ -131,12 +133,24 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
       [meal]: {
         note,
         participants: selected,
-        booking: Object.keys(booking || {}).length ? booking : null
+        booking: hasBooking && Object.keys(booking || {}).length ? booking : null
       }
     };
     onSave(updated);
     onClose();
   };
+
+  const handleSelectAll = () => {
+    if (selected.length === trip.meta.participants.length) {
+      // 如果已全選，則取消全選
+      setSelected([]);
+    } else {
+      // 否則全選
+      setSelected([...trip.meta.participants]);
+    }
+  };
+
+  const isAllSelected = selected.length === trip.meta.participants.length;
 
   const partOptions = trip.meta.participants.map((p) => ({ value: p, label: p }));
 
@@ -144,18 +158,30 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
     <Modal opened={opened} onClose={onClose} title={`${day.date} ${day.weekday} · ${meal === 'lunch' ? '午餐' : '晚餐'}`} size="lg">
       <Stack>
         <Textarea label="備註 / 計劃" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={2} />
+        
+        <Group justify="space-between" align="center">
+          <Text size="md" fw={500}>出席成員</Text>
+          <Button 
+            size="xs" 
+            variant="light" 
+            onClick={handleSelectAll}
+            leftSection={<IconUsers size={14} />}
+          >
+            {isAllSelected ? '取消全選' : '全選成員'}
+          </Button>
+        </Group>
+        
         <Checkbox.Group
-          label="出席成員"
           value={selected}
           onChange={setSelected}
         >
-          <Stack gap="xs" mt="xs">
+          <Stack gap="xs">
             {trip.meta.participants.map((participant) => (
               <Checkbox 
                 key={participant} 
                 value={participant} 
                 label={participant}
-                size="sm"
+                size="md"
               />
             ))}
           </Stack>
@@ -164,7 +190,22 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
         <Text size="sm" c="dimmed">
           💡 提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
         </Text>
-        <Divider my="xs" label="訂位資訊（可選）" />
+        
+        <Group justify="space-between" align="center">
+          <Text size="md" fw={500}>訂位狀態</Text>
+          <Switch
+            label="已訂位"
+            checked={hasBooking}
+            onChange={(event) => setHasBooking(event.currentTarget.checked)}
+            size="md"
+          />
+        </Group>
+        
+        {hasBooking && (
+          <>
+            <Divider my="xs" label="訂位資訊" />
+          </>
+        )}
         <TextInput label="餐廳/地點" value={booking?.place || ''} onChange={(e) => setBooking({ ...booking, place: e.currentTarget.value })} />
         <TimeInput 
           label="用餐時間" 
