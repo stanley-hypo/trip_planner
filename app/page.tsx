@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor } from '@mantine/core';
+import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -49,15 +49,11 @@ function InitForm({ onDone }: { onDone: () => void }) {
         value={range}
         onChange={setRange}
       />
-      <MultiSelect
+      <TagsInput
         label="成員（可新增）"
-        data={participants}
         value={participants}
         onChange={setParticipants}
-        searchable
-        creatable
-        getCreateLabel={(q) => `新增成員："${q}"`}
-        onCreate={(q) => setParticipants((prev) => [...prev, q])}
+        placeholder="輸入成員名稱後按Enter"
       />
       <Group>
         <Button onClick={submit} leftSection={<IconPlus size={16} />} loading={creating}>建立</Button>
@@ -116,15 +112,10 @@ function MealModal({ trip, day, meal, opened, onClose, onSave } : {
           value={selected}
           onChange={setSelected}
           searchable
-          creatable
-          getCreateLabel={(q) => `新增成員："${q}"`}
-          onCreate={(q) => {
-            // Add to trip meta as well
-            if (!trip.meta.participants.includes(q)) trip.meta.participants.push(q);
-            setSelected((prev) => [...prev, q]);
-            return { value: q, label: q };
-          }}
         />
+        <Text size="sm" c="dimmed">
+          提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
+        </Text>
         <Divider my="xs" label="訂位資訊（可選）" />
         <TextInput label="餐廳/地點" value={booking?.place || ''} onChange={(e) => setBooking({ ...booking, place: e.currentTarget.value })} />
         <DateTimePicker label="日期時間" value={booking?.time ? new Date(booking.time) : null} onChange={(v) => setBooking({ ...booking, time: v ? dayjs(v).format('YYYY-MM-DD HH:mm') : undefined })} />
