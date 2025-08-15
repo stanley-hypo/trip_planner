@@ -19,8 +19,10 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const trip = body?.trip as Trip;
     if (!trip) return NextResponse.json({ ok: false, error: 'Missing trip' }, { status: 400 });
+    console.log('trip', trip.days[0]);
     await saveTrip(trip);
     return NextResponse.json({ ok: true });
   } catch (e: any) {

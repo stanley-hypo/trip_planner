@@ -9,12 +9,16 @@ export type Booking = {
   googleMaps?: string;
   notes?: string;
   isBooked?: boolean; // 標記是否已完成訂位
+  timeSlot?: string; // 新增：時間槽，例如 "12:00", "19:30"
 };
 
 export type Meal = {
+  id: string; // 新增：唯一標識符
   note: string;
   participants: string[];
   booking?: Booking | null;
+  timeSlot: string; // 新增：時間槽，例如 "12:00", "19:30"
+  type: 'lunch' | 'dinner'; // 新增：餐點類型
 };
 
 export type SpecialEvent = {
@@ -29,8 +33,7 @@ export type SpecialEvent = {
 export type Day = {
   date: string;     // YYYY-MM-DD
   weekday: string;  // 星期三
-  lunch: Meal;
-  dinner: Meal;
+  meals: Meal[];    // 餐點陣列
   special: string; // 保持向後兼容
   specialEvents?: SpecialEvent[]; // 新的多項目結構
 };

@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { AppShell, Button, Container, Group, Modal, Stack, Title, Text, Badge, Table, Textarea, LoadingOverlay, Notification, ActionIcon, Tooltip, Divider, Chip, MultiSelect, NumberInput, TextInput, Anchor, TagsInput, Checkbox, Card, List, ThemeIcon, Switch } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
-import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes, IconX, IconCalendarPlus, IconRefresh } from '@tabler/icons-react';
+import { IconCalendar, IconPencil, IconPlus, IconDeviceFloppy, IconTrash, IconExternalLink, IconLogout, IconClock, IconMapPin, IconUsers, IconCurrencyDollar, IconPhone, IconWorld, IconNotes, IconX, IconCalendarPlus, IconRefresh, IconEdit } from '@tabler/icons-react';
 import { LoginForm } from '@/components/LoginForm';
 import { ResetConfirmModal } from '@/components/ResetConfirmModal';
 import { SpecialEventsModal } from '@/components/SpecialEventsModal';
+import { MealManager } from '@/components/MealManager';
 import { Navigation } from '@/components/Navigation';
 import dayjs from 'dayjs';
-import { Trip, Day, Booking, SpecialEvent } from '@/lib/types';
+import { Trip, Day, Booking, SpecialEvent, Meal } from '@/lib/types';
 
 const fetcher = (url: string) => fetch(url).then(async (r) => {
   if (!r.ok) throw new Error((await r.json()).error || 'Request failed');
@@ -96,182 +97,15 @@ function InitForm({ onDone, isReset = false }: { onDone: () => void; isReset?: b
   );
 }
 
-type EditState = {
-  open: boolean;
-  date?: string;
-  meal?: 'lunch' | 'dinner';
-};
-
 type SpecialEditState = {
   open: boolean;
   date?: string;
 };
 
-function MealModal({ trip, day, meal, opened, onClose, onSave } : {
-  trip: Trip;
-  day: Day;
-  meal: 'lunch' | 'dinner';
-  opened: boolean;
-  onClose: () => void;
-  onSave: (day: Day) => void;
-}) {
-  const m = day[meal];
-  const [note, setNote] = useState(m.note);
-  const [selected, setSelected] = useState<string[]>(m.participants);
-  const [booking, setBooking] = useState<Booking>(m.booking || {} as Booking);
-  const [isBooked, setIsBooked] = useState(Boolean(m.booking?.isBooked));
-
-  useEffect(() => {
-    setNote(m.note);
-    setSelected(m.participants);
-    setBooking(m.booking || {});
-    setIsBooked(Boolean(m.booking?.isBooked));
-  }, [day.date, meal, opened]);
-
-  const save = () => {
-    const updated: Day = {
-      ...day,
-      [meal]: {
-        note,
-        participants: selected,
-        booking: Object.keys(booking || {}).length ? { ...booking, isBooked } : null
-      }
-    };
-    onSave(updated);
-    onClose();
-  };
-
-  const handleSelectAll = () => {
-    if (selected.length === trip.meta.participants.length) {
-      // 如果已全選，則取消全選
-      setSelected([]);
-    } else {
-      // 否則全選
-      setSelected([...trip.meta.participants]);
-    }
-  };
-
-  const isAllSelected = selected.length === trip.meta.participants.length;
-
-  const partOptions = trip.meta.participants.map((p) => ({ value: p, label: p }));
-
-  return (
-    <Modal opened={opened} onClose={onClose} title={`${day.date} ${day.weekday} · ${meal === 'lunch' ? '午餐' : '晚餐'}`} size="lg">
-      <Stack>
-        <Textarea label="備註 / 計劃" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={2} />
-        
-        <Group justify="space-between" align="center">
-          <Text size="md" fw={500}>出席成員</Text>
-          <Button 
-            size="xs" 
-            variant="light" 
-            onClick={handleSelectAll}
-            leftSection={<IconUsers size={14} />}
-          >
-            {isAllSelected ? '取消全選' : '全選成員'}
-          </Button>
-        </Group>
-        
-        <Checkbox.Group
-          value={selected}
-          onChange={setSelected}
-        >
-          <Stack gap="xs">
-            {trip.meta.participants.map((participant) => (
-              <Checkbox 
-                key={participant} 
-                value={participant} 
-                label={participant}
-                size="md"
-              />
-            ))}
-          </Stack>
-        </Checkbox.Group>
-        
-        <Text size="sm" c="dimmed">
-          💡 提示：如需新增成員，請在初始設定中使用成員標籤輸入功能
-        </Text>
-        
-        <Divider my="xs" label="餐廳資訊" />
-        
-        <TextInput label="餐廳/地點" value={booking?.place || ''} onChange={(e) => setBooking({ ...booking, place: e.currentTarget.value })} />
-        <TimeInput 
-          label="用餐時間" 
-          value={booking?.time ? booking.time.split(' ')[1] : ''} 
-          onChange={(e) => {
-            const timeValue = e.currentTarget.value;
-            const dateValue = day.date;
-            setBooking({ 
-              ...booking, 
-              time: timeValue ? `${dateValue} ${timeValue}` : undefined 
-            });
-          }} 
-          leftSection={<IconClock size={16} />}
-          placeholder="選擇時間 (如: 19:30)"
-          styles={{
-            input: {
-              borderColor: '#e9ecef',
-              '&:focus': {
-                borderColor: '#339af0',
-              }
-            }
-          }}
-        />
-        <NumberInput label="人數" value={booking?.people ?? undefined} onChange={(v) => setBooking({ ...booking, people: Number(v) || undefined })} min={1} />
-        
-        <Group justify="space-between" align="center" mt="md">
-          <Text size="md" fw={500}>訂位狀態</Text>
-          <Switch
-            label="已訂位"
-            checked={isBooked}
-            onChange={(event) => setIsBooked(event.currentTarget.checked)}
-            size="md"
-          />
-        </Group>
-        
-        <Group grow>
-          <TextInput label="預約編號" value={booking?.ref || ''} onChange={(e) => setBooking({ ...booking, ref: e.currentTarget.value })} />
-          <TextInput label="聯絡方式" value={booking?.contact || ''} onChange={(e) => setBooking({ ...booking, contact: e.currentTarget.value })} />
-        </Group>
-        <Group grow>
-          <NumberInput label="預算 / 價格" value={booking?.price ?? undefined} onChange={(v) => setBooking({ ...booking, price: Number(v) || undefined })} min={0} />
-          <TextInput label="連結" value={booking?.url || ''} onChange={(e) => setBooking({ ...booking, url: e.currentTarget.value })} />
-        </Group>
-        
-        <Group grow>
-          <TextInput 
-            label="Google Maps 連結" 
-            value={booking?.googleMaps || ''} 
-            onChange={(e) => setBooking({ ...booking, googleMaps: e.currentTarget.value })} 
-            leftSection={<IconMapPin size={16} />}
-            placeholder="貼上 Google Maps 連結"
-          />
-          {booking?.googleMaps && (
-            <Button 
-              variant="light" 
-              leftSection={<IconExternalLink size={16} />} 
-              onClick={() => window.open(booking.googleMaps, '_blank')}
-              style={{ alignSelf: 'flex-end' }}
-            >
-              打開地圖
-            </Button>
-          )}
-        </Group>
-        <Textarea label="備註" value={booking?.notes || ''} onChange={(e) => setBooking({ ...booking, notes: e.currentTarget.value })} autosize minRows={2} />
-        
-        <Group justify="space-between" mt="sm">
-          <Button variant="light" color="red" leftSection={<IconTrash size={16} />} onClick={() => { setBooking({}); setIsBooked(false); }}>
-            清除餐廳資料
-          </Button>
-        </Group>
-        
-        <Group justify="flex-end" mt="lg">
-          <Button leftSection={<IconDeviceFloppy size={16} />} onClick={save}>儲存</Button>
-        </Group>
-      </Stack>
-    </Modal>
-  );
-}
+type MealManagerState = {
+  open: boolean;
+  date?: string;
+};
 
 export default function Page() {
   const { isAuthenticated, authLoading, checkAuth } = useAuth();
@@ -279,8 +113,8 @@ export default function Page() {
   const [initOpen, setInitOpen] = useState(false);
   const [isResetMode, setIsResetMode] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [edit, setEdit] = useState<EditState>({ open: false });
   const [specialEdit, setSpecialEdit] = useState<SpecialEditState>({ open: false });
+  const [mealManager, setMealManager] = useState<MealManagerState>({ open: false });
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
   useEffect(() => {
@@ -320,10 +154,22 @@ export default function Page() {
     await mutate();
   };
 
-  const onEditSave = async (updatedDay: Day) => {
+  const onMealManagerSave = async (updatedDay: Day) => {
     if (!trip) return;
-    const days = trip.days.map((d) => (d.date === updatedDay.date ? updatedDay : d));
-    await saveTrip({ ...trip, days });
+    try {
+      console.log('onMealManagerSave 被調用，updatedDay:', updatedDay);
+      const days = trip.days.map((d) => (d.date === updatedDay.date ? updatedDay : d));
+      const updatedTrip = { ...trip, days };
+      console.log('準備保存的 updatedTrip:', updatedTrip);
+      await saveTrip(updatedTrip);
+      console.log('saveTrip 完成，準備刷新數據');
+      await mutate(); // 重新獲取數據以更新界面
+      console.log('餐點保存成功:', updatedDay.meals);
+      return true; // 返回成功標誌
+    } catch (error) {
+      console.error('餐點保存失敗:', error);
+      throw error; // 將錯誤向上拋出，以便在 MealManager 中捕獲
+    }
   };
 
   const onSpecialSave = async (updatedDay: Day) => {
@@ -356,8 +202,7 @@ export default function Page() {
     const newDay: Day = {
       date: newDate,
       weekday: zhWeekday(new Date(newDate + 'T00:00:00')),
-      lunch: { note: '', participants: [], booking: null },
-      dinner: { note: '', participants: [], booking: null },
+      meals: [],
       special: '',
       specialEvents: []
     };
@@ -417,6 +262,132 @@ export default function Page() {
     );
   }
 
+  // 渲染餐點顯示
+  const renderMeals = (day: Day) => {
+    const meals = day.meals || [];
+    
+    if (meals.length === 0) {
+      return (
+        <Card padding="sm" radius="md" withBorder style={{ backgroundColor: '#f8f9fa' }}>
+          <Stack gap="xs" align="center">
+            <IconPencil size={24} color="#adb5bd" />
+            <Text size="sm" c="dimmed">無餐點安排</Text>
+            <Button 
+              size="xs" 
+              variant="light" 
+              color="blue"
+              leftSection={<IconPlus size={12} />}
+              onClick={() => setMealManager({ open: true, date: day.date })}
+            >
+              新增餐點
+            </Button>
+          </Stack>
+        </Card>
+      );
+    }
+
+    return (
+      <Stack gap="xs">
+        {meals
+          .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot))
+          .map((meal) => (
+            <Card key={meal.id} padding="sm" radius="md" withBorder 
+                  style={{ 
+                    backgroundColor: meal.type === 'lunch' ? '#fef7ed' : '#f5f3ff',
+                    borderLeft: `4px solid ${meal.type === 'lunch' ? '#fd7e14' : '#7950f2'}`
+                  }}>
+              <Stack gap="xs">
+                <Group justify="space-between" align="center">
+                  <Group gap="xs">
+                    <Badge 
+                      color={meal.type === 'lunch' ? 'orange' : 'violet'} 
+                      variant="light"
+                      size="sm"
+                    >
+                      {meal.type === 'lunch' ? '🍽️ 午餐' : '🍷 晚餐'}
+                    </Badge>
+                    <Badge 
+                      color="blue" 
+                      variant="light"
+                      size="sm"
+                      leftSection={<IconClock size={10} />}
+                    >
+                      {meal.timeSlot}
+                    </Badge>
+                    {meal.booking?.isBooked && (
+                      <Badge color="green" variant="light" size="sm">已訂位</Badge>
+                    )}
+                  </Group>
+                  
+                  <Group gap="xs">
+                    <ActionIcon
+                      size="xs"
+                      variant="light"
+                      color="blue"
+                      onClick={() => setMealManager({ open: true, date: day.date })}
+                    >
+                      <IconEdit size={12} />
+                    </ActionIcon>
+                  </Group>
+                </Group>
+
+                {meal.note && (
+                  <Text size="sm">{meal.note}</Text>
+                )}
+
+                {meal.participants.length > 0 && (
+                  <Group gap="xs">
+                    <ThemeIcon size="sm" color="blue" variant="light">
+                      <IconUsers size={10} />
+                    </ThemeIcon>
+                    <Text size="xs">{meal.participants.join('、')}</Text>
+                  </Group>
+                )}
+
+                {meal.booking?.place && (
+                  <Group gap="xs">
+                    <ThemeIcon size="sm" color="green" variant="light">
+                      <IconMapPin size={10} />
+                    </ThemeIcon>
+                    <Text size="xs" fw={500}>{meal.booking.place}</Text>
+                  </Group>
+                )}
+
+                {meal.booking?.people && (
+                  <Group gap="xs">
+                    <ThemeIcon size="sm" color="teal" variant="light">
+                      <IconUsers size={10} />
+                    </ThemeIcon>
+                    <Text size="xs">{meal.booking.people} 人</Text>
+                  </Group>
+                )}
+
+                {meal.booking?.price && (
+                  <Group gap="xs">
+                    <ThemeIcon size="sm" color="green" variant="light">
+                      <IconCurrencyDollar size={10} />
+                    </ThemeIcon>
+                    <Text size="xs">${meal.booking.price}</Text>
+                  </Group>
+                )}
+              </Stack>
+            </Card>
+          ))}
+        
+        <Button 
+          size="xs" 
+          variant="light" 
+          color="blue"
+          leftSection={<IconPlus size={12} />}
+          onClick={() => setMealManager({ open: true, date: day.date })}
+          fullWidth
+        >
+          管理餐點
+        </Button>
+      </Stack>
+    );
+  };
+
   return (
     <AppShell header={{ height: 60 }} padding="md">
       <Navigation />
@@ -467,10 +438,8 @@ export default function Page() {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 160 }}>日期 / 星期</Table.Th>
-                <Table.Th>午餐</Table.Th>
-                <Table.Th>晚餐</Table.Th>
+                <Table.Th>餐點安排</Table.Th>
                 <Table.Th style={{ width: 240 }}>特別行程</Table.Th>
-                {/* 操作欄位已移除 */}
               </Table.Tr>
             </Table.Thead>
 
@@ -507,167 +476,9 @@ export default function Page() {
                     </Group>
                   </Table.Td>
 
-                  {["lunch","dinner"].map((mealKey) => {
-
-                    const meal = (d as any)[mealKey];
-                    const hasRestaurantData = meal?.booking && Object.keys(meal.booking).length > 0;
-                    const isBooked = meal?.booking?.isBooked;
-                    const isLunch = mealKey === 'lunch';
-                    const mealColor = isLunch ? 'orange' : 'violet';
-
-                    return (
-
-                      <Table.Td key={mealKey}>
-
-                        <Card padding="sm" radius="md" withBorder style={{ backgroundColor: isLunch ? '#fef7ed' : '#f5f3ff' }}>
-                          
-                          {/* 餐別標題 */}
-                          <Group justify="space-between" mb="sm">
-                            <Text size="lg" fw={600} c={isLunch ? 'orange' : 'violet'}>
-                              {isLunch ? '🍽️ 午餐' : '🍷 晚餐'}
-                            </Text>
-                            {hasRestaurantData && (
-                              <Text size="xs" c={isBooked ? "green" : "orange"} fw={500}>
-                                ● {isBooked ? '已訂位' : '未訂位'}
-                              </Text>
-                            )}
-                          </Group>
-
-                          {/* 參與成員 */}
-                          <Group mb="xs">
-                            <ThemeIcon size="sm" color={mealColor} variant="light">
-                              <IconUsers size={12} />
-                            </ThemeIcon>
-                            <Text size="md" fw={500}>
-                              {meal.participants.length > 0 
-                                ? meal.participants.join('、') 
-                                : '無參與者'
-                              }
-                            </Text>
-                          </Group>
-
-                          {/* 備註內容 */}
-                          {meal.note && (
-                            <Group align="flex-start" mb="sm">
-                              <ThemeIcon size="sm" color="gray" variant="light">
-                                <IconNotes size={12} />
-                              </ThemeIcon>
-                              <Text size="md" style={{ flex: 1 }}>
-                                {meal.note}
-                              </Text>
-                            </Group>
-                          )}
-
-                          {/* 餐廳信息 */}
-                          {hasRestaurantData && (
-                            <Stack gap="xs" mt="sm" pt="sm" style={{ borderTop: '1px solid #e9ecef' }}>
-                              
-                              {meal.booking.place && (
-                                <Group>
-                                  <ThemeIcon size="sm" color="blue" variant="light">
-                                    <IconMapPin size={12} />
-                                  </ThemeIcon>
-                                  <Text size="md" fw={500}>{meal.booking.place}</Text>
-                                </Group>
-                              )}
-                              
-                              {meal.booking.time && (
-                                <Group>
-                                  <ThemeIcon size="sm" color="indigo" variant="light">
-                                    <IconClock size={12} />
-                                  </ThemeIcon>
-                                  <Text size="md">{meal.booking.time.split(' ')[1] || meal.booking.time}</Text>
-                                </Group>
-                              )}
-                              
-                              {meal.booking.people && (
-                                <Group>
-                                  <ThemeIcon size="sm" color="teal" variant="light">
-                                    <IconUsers size={12} />
-                                  </ThemeIcon>
-                                  <Text size="md">{meal.booking.people} 人</Text>
-                                </Group>
-                              )}
-
-                              {meal.booking.price && (
-                                <Group>
-                                  <ThemeIcon size="sm" color="green" variant="light">
-                                    <IconCurrencyDollar size={12} />
-                                  </ThemeIcon>
-                                  <Text size="md">${meal.booking.price}</Text>
-                                </Group>
-                              )}
-                              
-                              {meal.booking.ref && (
-                                <Group>
-                                  <ThemeIcon size="sm" color="purple" variant="light">
-                                    <IconPhone size={12} />
-                                  </ThemeIcon>
-                                  <Text size="md">{meal.booking.ref}</Text>
-                                </Group>
-                              )}
-
-                              {/* 連結按鈕 */}
-                              <Group gap="xs" mt="xs">
-                                {meal.booking.url && (
-                                  <Button
-                                    size="sm"
-                                    variant="light"
-                                    color="cyan"
-                                    leftSection={<IconWorld size={14} />}
-                                    onClick={() => window.open(meal.booking.url, '_blank')}
-                                  >
-                                    網站
-                                  </Button>
-                                )}
-                                
-                                {meal.booking.googleMaps && (
-                                  <Button
-                                    size="sm"
-                                    variant="light"
-                                    color="blue"
-                                    leftSection={<IconMapPin size={14} />}
-                                    onClick={() => window.open(meal.booking.googleMaps, '_blank')}
-                                  >
-                                    地圖
-                                  </Button>
-                                )}
-                              </Group>
-
-                              {meal.booking.notes && (
-                                <Text size="sm" c="dimmed" style={{ 
-                                  fontStyle: 'italic',
-                                  marginTop: '8px',
-                                  padding: '8px',
-                                  backgroundColor: '#f8f9fa',
-                                  borderRadius: '4px'
-                                }}>
-                                  {meal.booking.notes}
-                                </Text>
-                              )}
-                            </Stack>
-                          )}
-
-                          {/* 編輯按鈕 */}
-                          <Group justify="flex-end" mt="sm">
-                            <Button 
-                              size="sm" 
-                              variant="light" 
-                              color={mealColor}
-                              leftSection={<IconPencil size={14} />} 
-                              onClick={() => setEdit({ open: true, date: d.date, meal: mealKey as any })}
-                            >
-                              編輯
-                            </Button>
-                          </Group>
-
-                        </Card>
-
-                      </Table.Td>
-
-                    );
-
-                  })}
+                  <Table.Td>
+                    {renderMeals(d)}
+                  </Table.Td>
 
                   <Table.Td>
                     <Stack gap={6}>
@@ -736,17 +547,6 @@ export default function Page() {
         <InitForm onDone={() => { setInitOpen(false); setIsResetMode(false); location.reload(); }} isReset={isResetMode} />
       </Modal>
 
-      {edit.open && (
-        <MealModal
-          trip={trip}
-          day={trip.days.find((x) => x.date === edit.date)!}
-          meal={edit.meal!}
-          opened={edit.open}
-          onClose={() => setEdit({ open: false })}
-          onSave={onEditSave}
-        />
-      )}
-
       {specialEdit.open && (
         <SpecialEventsModal
           day={trip.days.find((x) => x.date === specialEdit.date)!}
@@ -755,6 +555,18 @@ export default function Page() {
           onSave={onSpecialSave}
         />
       )}
+
+              {mealManager.open && (
+          <MealManager
+            trip={trip}
+            day={trip.days.find((x) => x.date === mealManager.date)!}
+            opened={mealManager.open}
+            onClose={() => setMealManager({ open: false })}
+            onSave={onMealManagerSave}
+            onTripUpdate={saveTrip}
+            key={`${mealManager.date}-${trip.days.length}`} // 強制重新渲染當 trip 更新時
+          />
+        )}
 
       <ResetConfirmModal
         opened={resetConfirmOpen}

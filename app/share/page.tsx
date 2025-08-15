@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AppShell, Container, Title, Text, Card, Stack, Group, Button, Textarea, Badge, Divider, ActionIcon, Tooltip, Modal, TextInput, Select, HoverCard } from '@mantine/core';
-import { IconPlus, IconMessage, IconHeart, IconExternalLink, IconCopy, IconCheck, IconEye, IconMessageCircle, IconShare, IconEdit, IconTrash, IconDeviceFloppy, IconX, IconSend, IconUser } from '@tabler/icons-react';
+import { AppShell, Container, Title, Text, Card, Stack, Group, Button, Textarea, Badge, Divider, ActionIcon, Tooltip, Modal, TextInput, Select, HoverCard, TagsInput } from '@mantine/core';
+import { IconPlus, IconMessage, IconHeart, IconExternalLink, IconCopy, IconCheck, IconEye, IconMessageCircle, IconShare, IconEdit, IconTrash, IconDeviceFloppy, IconX, IconSend, IconUser, IconRefresh, IconCalendar } from '@tabler/icons-react';
 import { Navigation } from '../../components/Navigation';
+import { ResetConfirmModal } from '../../components/ResetConfirmModal';
+import { DatePickerInput } from '@mantine/dates';
 import useSWR from 'swr';
-import { Trip } from '@/lib/types';
+import { Trip, Meal } from '@/lib/types';
+import dayjs from 'dayjs';
 
 const fetcher = (url: string) => fetch(url).then(async (r) => {
   if (!r.ok) throw new Error((await r.json()).error || 'Request failed');
@@ -35,7 +38,7 @@ interface Comment {
 }
 
 export default function SharePage() {
-  const { data, error, isLoading } = useSWR<{ ok: boolean; trip: Trip }>(`/api/trip`, fetcher);
+  const { data, error, isLoading, mutate } = useSWR<{ ok: boolean; trip: Trip }>(`/api/trip`, fetcher);
   const { data: sharingData, error: sharingError, isLoading: sharingLoading, mutate: mutatePosts } = useSWR<{ ok: boolean; posts: TravelPost[] }>(`/api/sharing`, fetcher);
   const trip = data?.trip;
   const [posts, setPosts] = useState<TravelPost[]>([]);
@@ -53,6 +56,16 @@ export default function SharePage() {
   const [currentUser, setCurrentUser] = useState<string>('');
   const [showCommentModal, setShowCommentModal] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
+  
+  // 重新開啟行程相關狀態
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [initOpen, setInitOpen] = useState(false);
+  
+  // 新行程設定狀態
+  const [newTripRange, setNewTripRange] = useState<[Date | null, Date | null]>([new Date('2026-02-04'), new Date('2026-02-09')]);
+  const [newTripParticipants, setNewTripParticipants] = useState<string[]>(['Alex', 'Ben', 'Cathy']);
+  const [creatingTrip, setCreatingTrip] = useState(false);
   
   // Cookies管理
   const getCookie = (name: string): string | null => {
@@ -235,6 +248,50 @@ export default function SharePage() {
     await savePosts(newPosts);
   };
 
+  const handleResetConfirm = () => {
+    setResetConfirmOpen(false);
+    setIsResetMode(true);
+    setInitOpen(true);
+  };
+
+  // 創建新行程
+  const createNewTrip = async () => {
+    if (!newTripRange[0] || !newTripRange[1]) return;
+    
+    setCreatingTrip(true);
+    try {
+      const response = await fetch('/api/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          start: dayjs(newTripRange[0]).format('YYYY-MM-DD'),
+          end: dayjs(newTripRange[1]).format('YYYY-MM-DD'),
+          participants: newTripParticipants,
+          force: true // 強制創建新行程
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create trip');
+      }
+      
+      setCreatingTrip(false);
+      setInitOpen(false);
+      setIsResetMode(false);
+      
+      // 重新獲取行程數據
+      await mutate();
+      
+      // 顯示成功訊息
+      alert('行程已成功重新設定！');
+      
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      setCreatingTrip(false);
+      alert('創建行程時發生錯誤，請重試');
+    }
+  };
+
   const categories = [
     { value: '日本', label: '🇯🇵 日本' },
     { value: '韓國', label: '🇰🇷 韓國' },
@@ -287,6 +344,17 @@ export default function SharePage() {
                     w={120}
                   />
                 </Group>
+                
+                {/* 重新開啟行程按鈕 */}
+                <Button
+                  variant="light"
+                  color="orange"
+                  leftSection={<IconRefresh size={16} />}
+                  onClick={() => setResetConfirmOpen(true)}
+                  size="md"
+                >
+                  重新開啟行程
+                </Button>
                 
                 <Button
                   leftSection={<IconPlus size={16} />}
@@ -363,16 +431,15 @@ export default function SharePage() {
                                               {day.date.slice(5)} {day.weekday.slice(2)}
                                             </Text>
                                             <Stack gap={2} style={{ flex: 1 }}>
-                                              {day.lunch?.booking?.place && (
-                                                <Text size="xs" c="orange">🍽️ {day.lunch.booking.place}</Text>
-                                              )}
-                                              {day.dinner?.booking?.place && (
-                                                <Text size="xs" c="violet">🍷 {day.dinner.booking.place}</Text>
-                                              )}
-                                              {day.specialEvents?.length > 0 && (
+                                              {day.meals?.length > 0 ? (
+                                                day.meals.map((meal: Meal) => (
+                                                  <Text key={meal.id} size="xs" c={meal.type === 'lunch' ? 'orange' : 'violet'}>
+                                                    {meal.type === 'lunch' ? '🍽️' : '🍷'} {meal.booking?.place || meal.note || `${meal.type === 'lunch' ? '午餐' : '晚餐'}`}
+                                                  </Text>
+                                                ))
+                                              ) : day.specialEvents?.length > 0 ? (
                                                 <Text size="xs" c="green">🎯 {day.specialEvents[0].title}</Text>
-                                              )}
-                                              {!day.lunch?.booking?.place && !day.dinner?.booking?.place && !day.specialEvents?.length && (
+                                              ) : (
                                                 <Text size="xs" c="dimmed">無特別安排</Text>
                                               )}
                                             </Stack>
@@ -688,6 +755,95 @@ export default function SharePage() {
                 );
               })()}
             </Modal>
+
+            {/* 重新開啟行程模態框 */}
+            <Modal 
+              opened={initOpen} 
+              onClose={() => { setInitOpen(false); setIsResetMode(false); }} 
+              title={isResetMode ? "重設行程" : "開始新行程"}
+              size="lg"
+            >
+              <Stack gap="md">
+                <Text size="sm" c="dimmed">
+                  {isResetMode 
+                    ? "重設行程將會清除所有現有的行程資料，此操作無法復原。請設定新的日期範圍和參與成員。"
+                    : "建立新的旅行行程，設定日期範圍和參與成員。"
+                  }
+                </Text>
+                
+                {/* 日期範圍選擇器 */}
+                <DatePickerInput
+                  type="range"
+                  label="旅行日期範圍"
+                  leftSection={<IconCalendar size={16} />}
+                  value={newTripRange}
+                  onChange={setNewTripRange}
+                  styles={{
+                    input: {
+                      borderColor: '#e9ecef',
+                      '&:focus': {
+                        borderColor: '#339af0',
+                      }
+                    }
+                  }}
+                />
+                
+                {/* 成員設定 */}
+                <TagsInput
+                  label="參與成員（可新增）"
+                  value={newTripParticipants}
+                  onChange={setNewTripParticipants}
+                  placeholder="輸入成員名稱後按Enter"
+                />
+                
+                {/* 當前行程資訊顯示 */}
+                {trip && (
+                  <Card padding="sm" withBorder style={{ backgroundColor: '#fff8e1' }}>
+                    <Stack gap="xs">
+                      <Text size="sm" fw={500} c="orange">⚠️ 當前行程資訊</Text>
+                      <Text size="xs" c="dimmed">
+                        日期：{trip.meta.startDate} → {trip.meta.endDate} ({trip.days.length} 天)
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        成員：{trip.meta.participants.join('、')}
+                      </Text>
+                      <Text size="xs" c="red">
+                        重新設定後，所有現有資料將被清除！
+                      </Text>
+                    </Stack>
+                  </Card>
+                )}
+                
+                <Group justify="space-between" mt="md">
+                  <Button 
+                    variant="light" 
+                    leftSection={<IconX size={16} />}
+                    onClick={() => {
+                      setInitOpen(false);
+                      setIsResetMode(false);
+                    }}
+                    disabled={creatingTrip}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    color="orange"
+                    leftSection={<IconRefresh size={16} />}
+                    onClick={createNewTrip}
+                    loading={creatingTrip}
+                    disabled={!newTripRange[0] || !newTripRange[1] || newTripParticipants.length === 0}
+                  >
+                    {creatingTrip ? '創建中...' : '確認重新設定'}
+                  </Button>
+                </Group>
+              </Stack>
+            </Modal>
+
+            <ResetConfirmModal
+              opened={resetConfirmOpen}
+              onClose={() => setResetConfirmOpen(false)}
+              onConfirm={handleResetConfirm}
+            />
 
           </Stack>
         </Container>

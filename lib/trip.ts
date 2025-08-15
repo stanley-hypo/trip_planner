@@ -22,8 +22,9 @@ export function emptyTrip(start: string, end: string, participants: string[] = [
   const days: Day[] = enumerateDates(start, end).map((ds) => ({
     date: ds,
     weekday: zhWeekday(new Date(ds + 'T00:00:00')),
-    lunch: { note: '', participants: [], booking: null },
-    dinner: { note: '', participants: [], booking: null },
+    meals: [],
+    lunch: { id: '', note: '', participants: [], timeSlot: '12:00', type: 'lunch' },
+    dinner: { id: '', note: '', participants: [], timeSlot: '19:00', type: 'dinner' },
     special: '',
     specialEvents: []
   }));
