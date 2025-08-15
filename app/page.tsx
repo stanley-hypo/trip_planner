@@ -335,39 +335,133 @@ export default function Page() {
                   <Text size="sm">{meal.note}</Text>
                 )}
 
-                {meal.participants.length > 0 && (
-                  <Group gap="xs">
-                    <ThemeIcon size="sm" color="blue" variant="light">
-                      <IconUsers size={10} />
-                    </ThemeIcon>
-                    <Text size="xs">{meal.participants.join('、')}</Text>
+                {/* 參與者和人數信息 */}
+                {(meal.participants.length > 0 || meal.booking?.people) && (
+                  <Group gap="md">
+                    {meal.participants.length > 0 && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="blue" variant="light">
+                          <IconUsers size={10} />
+                        </ThemeIcon>
+                        <Text size="xs">{meal.participants.join('、')}</Text>
+                      </Group>
+                    )}
+                    {meal.booking?.people && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="teal" variant="light">
+                          <IconUsers size={10} />
+                        </ThemeIcon>
+                        <Text size="xs">{meal.booking.people} 人</Text>
+                      </Group>
+                    )}
                   </Group>
                 )}
 
-                {meal.booking?.place && (
-                  <Group gap="xs">
-                    <ThemeIcon size="sm" color="green" variant="light">
-                      <IconMapPin size={10} />
-                    </ThemeIcon>
-                    <Text size="xs" fw={500}>{meal.booking.place}</Text>
+                {/* 餐廳和時間信息 */}
+                {(meal.booking?.place || meal.booking?.time) && (
+                  <Group gap="md">
+                    {meal.booking?.place && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="green" variant="light">
+                          <IconMapPin size={10} />
+                        </ThemeIcon>
+                        <Text size="xs" fw={500}>{meal.booking.place}</Text>
+                      </Group>
+                    )}
+                    {meal.booking?.time && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="orange" variant="light">
+                          <IconClock size={10} />
+                        </ThemeIcon>
+                        <Text size="xs" c="dimmed">
+                          {meal.booking.time.split(' ')[1]}
+                        </Text>
+                      </Group>
+                    )}
                   </Group>
                 )}
-
-                {meal.booking?.people && (
-                  <Group gap="xs">
-                    <ThemeIcon size="sm" color="teal" variant="light">
-                      <IconUsers size={10} />
-                    </ThemeIcon>
-                    <Text size="xs">{meal.booking.people} 人</Text>
+                
+                {/* 連結和價格信息 */}
+                {(meal.booking?.googleMaps || meal.booking?.url || meal.booking?.price) && (
+                  <Group gap="md">
+                    {meal.booking?.googleMaps && (
+                      <Group gap="xs">
+                        <Tooltip label="在 Google Maps 中查看">
+                          <ActionIcon
+                            size="sm"
+                            variant="filled"
+                            color="red"
+                            onClick={() => window.open(meal.booking!.googleMaps, '_blank')}
+                            style={{ 
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <IconMapPin size={12} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Text size="xs" fw={500} c="red"> Google Maps</Text>
+                      </Group>
+                    )}
+                    {meal.booking?.url && (
+                      <Group gap="xs">
+                        <Tooltip label="查看餐廳網頁">
+                          <ActionIcon
+                            size="sm"
+                            variant="filled"
+                            color="blue"
+                            onClick={() => window.open(meal.booking!.url, '_blank')}
+                            style={{ 
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <IconWorld size={12} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Text size="xs" fw={500} c="blue">網頁</Text>
+                      </Group>
+                    )}
+                    {meal.booking?.price && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="green" variant="light">
+                          <IconCurrencyDollar size={10} />
+                        </ThemeIcon>
+                        <Text size="xs">${meal.booking.price}</Text>
+                      </Group>
+                    )}
                   </Group>
                 )}
-
-                {meal.booking?.price && (
+                
+                {/* 餐廳備註 - 保持單獨一行 */}
+                {meal.booking?.notes && (
                   <Group gap="xs">
-                    <ThemeIcon size="sm" color="green" variant="light">
-                      <IconCurrencyDollar size={10} />
+                    <ThemeIcon size="sm" color="gray" variant="light">
+                      <IconNotes size={10} />
                     </ThemeIcon>
-                    <Text size="xs">${meal.booking.price}</Text>
+                    <Text size="xs" c="dimmed">{meal.booking.notes}</Text>
+                  </Group>
+                )}
+                
+                {/* 預約編號和聯絡方式 */}
+                {(meal.booking?.ref || meal.booking?.contact) && (
+                  <Group gap="md">
+                    {meal.booking?.ref && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="indigo" variant="light">
+                          <IconNotes size={10} />
+                        </ThemeIcon>
+                        <Text size="xs" c="dimmed">#{meal.booking.ref}</Text>
+                      </Group>
+                    )}
+                    {meal.booking?.contact && (
+                      <Group gap="xs">
+                        <ThemeIcon size="sm" color="cyan" variant="light">
+                          <IconPhone size={10} />
+                        </ThemeIcon>
+                        <Text size="xs" c="dimmed">{meal.booking.contact}</Text>
+                      </Group>
+                    )}
                   </Group>
                 )}
               </Stack>

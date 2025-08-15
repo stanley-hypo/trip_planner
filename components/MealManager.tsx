@@ -284,6 +284,90 @@ export function MealManager({ trip, day, opened, onClose, onSave, onTripUpdate }
                 新增餐點
               </Button>
             </Group>
+            
+            {/* 餐點統計信息 */}
+            {meals.length > 0 && (
+              <Card padding="sm" withBorder style={{ backgroundColor: '#f8f9fa' }}>
+                <Group gap="lg" wrap="wrap">
+                  <Group gap="xs">
+                    <Badge color="orange" variant="light">
+                      🍽️ 午餐: {meals.filter(m => m.type === 'lunch').length}
+                    </Badge>
+                    <Badge color="violet" variant="light">
+                      🍷 晚餐: {meals.filter(m => m.type === 'dinner').length}
+                    </Badge>
+                  </Group>
+                  
+                  <Group gap="xs">
+                    <Badge color="green" variant="light">
+                      📅 已訂位: {meals.filter(m => m.booking?.isBooked).length}
+                    </Badge>
+                    <Badge color="blue" variant="light">
+                      👥 參與者: {new Set(meals.flatMap(m => m.participants)).size} 人
+                    </Badge>
+                  </Group>
+                  
+                  {meals.some(m => m.booking?.price) && (
+                    <Group gap="xs">
+                      <Badge color="teal" variant="light">
+                        💰 總預算: ${meals.reduce((sum, m) => sum + (m.booking?.price || 0), 0)}
+                      </Badge>
+                    </Group>
+                  )}
+                  
+                  {/* 時間統計 */}
+                  {meals.length > 1 && (
+                    <Group gap="xs">
+                      <Badge color="indigo" variant="light">
+                        ⏰ 最早: {meals.reduce((earliest, m) => 
+                          m.timeSlot < earliest ? m.timeSlot : earliest, meals[0].timeSlot
+                        )}
+                      </Badge>
+                      <Badge color="indigo" variant="light">
+                        ⏰ 最晚: {meals.reduce((latest, m) => 
+                          m.timeSlot > latest ? m.timeSlot : latest, meals[0].timeSlot
+                        )}
+                      </Badge>
+                    </Group>
+                  )}
+                  
+                  {/* 餐廳統計 */}
+                  {meals.some(m => m.booking?.place) && (
+                    <Group gap="xs">
+                      <Badge color="lime" variant="light">
+                        🏪 有餐廳: {meals.filter(m => m.booking?.place).length} 餐
+                      </Badge>
+                      <Badge color="grape" variant="light">
+                        🔗 有連結: {meals.filter(m => m.booking?.url || m.booking?.googleMaps).length} 餐
+                      </Badge>
+                    </Group>
+                  )}
+                </Group>
+              </Card>
+            )}
+            
+            {/* 參與者詳細統計 */}
+            {meals.length > 0 && trip.meta.participants.length > 0 && (
+              <Card padding="sm" withBorder style={{ backgroundColor: '#f8f9fa' }}>
+                <Text size="sm" fw={500} mb="xs">參與者統計</Text>
+                <Group gap="md" wrap="wrap">
+                  {trip.meta.participants.map(participant => {
+                    const participantMeals = meals.filter(m => m.participants.includes(participant));
+                    return (
+                      <Group key={participant} gap="xs">
+                        <Badge 
+                          color={participantMeals.length > 0 ? "blue" : "gray"} 
+                          variant="light"
+                          size="sm"
+                        >
+                          {participant}: {participantMeals.length} 餐
+                        </Badge>
+                      </Group>
+                    );
+                  })}
+                </Group>
+              </Card>
+            )}
 
             {meals.length === 0 ? (
               <Card padding="lg" withBorder style={{ textAlign: 'center' }}>
@@ -320,21 +404,133 @@ export function MealManager({ trip, day, opened, onClose, onSave, onTripUpdate }
                             <Text size="sm">{meal.note}</Text>
                           )}
                           
-                          {meal.participants.length > 0 && (
-                            <Group gap="xs">
-                              <ThemeIcon size="sm" color="blue" variant="light">
-                                <IconUsers size={12} />
-                              </ThemeIcon>
-                              <Text size="xs">{meal.participants.join('、')}</Text>
+                          {/* 參與者和人數信息 */}
+                          {(meal.participants.length > 0 || meal.booking?.people) && (
+                            <Group gap="md">
+                              {meal.participants.length > 0 && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="blue" variant="light">
+                                    <IconUsers size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs">{meal.participants.join('、')}</Text>
+                                </Group>
+                              )}
+                              {meal.booking?.people && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="teal" variant="light">
+                                    <IconUsers size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs">{meal.booking.people} 人</Text>
+                                </Group>
+                              )}
                             </Group>
                           )}
                           
-                          {meal.booking?.place && (
+                          {/* 餐廳和時間信息 */}
+                          {(meal.booking?.place || meal.booking?.time) && (
+                            <Group gap="md">
+                              {meal.booking?.place && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="green" variant="light">
+                                    <IconMapPin size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs">{meal.booking.place}</Text>
+                                </Group>
+                              )}
+                              {meal.booking?.time && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="orange" variant="light">
+                                    <IconClock size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs" c="dimmed">
+                                    {meal.booking.time.split(' ')[1]}
+                                  </Text>
+                                </Group>
+                              )}
+                            </Group>
+                          )}
+                          
+                          {/* 連結和價格信息 */}
+                          {(meal.booking?.googleMaps || meal.booking?.url || meal.booking?.price) && (
+                            <Group gap="md">
+                              {meal.booking?.googleMaps && (
+                                <Group gap="xs">
+                                  <Tooltip label="在 Google Maps 中查看">
+                                    <ActionIcon
+                                      size="sm"
+                                      variant="filled"
+                                      color="red"
+                                      onClick={() => window.open(meal.booking!.googleMaps, '_blank')}
+                                      style={{ 
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                    >
+                                      <IconMapPin size={14} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                  <Text size="xs" fw={500} c="red"> Google Maps</Text>
+                                </Group>
+                              )}
+                              {meal.booking?.url && (
+                                <Group gap="xs">
+                                  <Tooltip label="查看餐廳網頁">
+                                    <ActionIcon
+                                      size="sm"
+                                      variant="filled"
+                                      color="blue"
+                                      onClick={() => window.open(meal.booking!.url, '_blank')}
+                                      style={{ 
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                      }}
+                                    >
+                                      <IconWorld size={14} />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                  <Text size="xs" fw={500} c="blue">網頁</Text>
+                                </Group>
+                              )}
+                              {meal.booking?.price && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="green" variant="light">
+                                    <IconCurrencyDollar size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs" c="dimmed">${meal.booking.price}</Text>
+                                </Group>
+                              )}
+                            </Group>
+                          )}
+                          
+                          {/* 預約編號和聯絡方式 */}
+                          {(meal.booking?.ref || meal.booking?.contact) && (
+                            <Group gap="md">
+                              {meal.booking?.ref && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="indigo" variant="light">
+                                    <IconNotes size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs" c="dimmed">#{meal.booking.ref}</Text>
+                                </Group>
+                              )}
+                              {meal.booking?.contact && (
+                                <Group gap="xs">
+                                  <ThemeIcon size="sm" color="cyan" variant="light">
+                                    <IconPhone size={12} />
+                                  </ThemeIcon>
+                                  <Text size="xs" c="dimmed">{meal.booking.contact}</Text>
+                                </Group>
+                              )}
+                            </Group>
+                          )}
+                          
+                          {/* 餐廳備註 - 保持單獨一行 */}
+                          {meal.booking?.notes && (
                             <Group gap="xs">
-                              <ThemeIcon size="sm" color="green" variant="light">
-                                <IconMapPin size={12} />
+                              <ThemeIcon size="sm" color="gray" variant="light">
+                                <IconNotes size={12} />
                               </ThemeIcon>
-                              <Text size="xs">{meal.booking.place}</Text>
+                              <Text size="xs" c="dimmed">{meal.booking.notes}</Text>
                             </Group>
                           )}
                         </Stack>
